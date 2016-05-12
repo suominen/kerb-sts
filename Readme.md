@@ -16,8 +16,16 @@ the URL of the ADFS AWS login page and the default region. Users can generate th
 ```
 kerb-sts --configure
 ```
-This will prompt the user for those values and then serialize the configuration. Users can override
-either of the configured values on the command line.
+This will prompt the user for those values and then serialize the configuration. Users
+can also manually create the configuration file which should look like the following:
+```
+{
+  "region": "us-east-1",
+  "adfs_url": "https://sample.domain.com/adfs/ls/IdpInitiatedSignOn.aspx?loginToRp=urn:amazon:webservices"
+}
+```
+Users can override either of the configured values on the command line.
+
 
 ## Building a Wheel
 The easiest way to install and distribute kerb-sts is using a wheel.
