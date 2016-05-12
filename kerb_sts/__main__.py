@@ -1,13 +1,14 @@
 import argparse
 import logging
 import os
-import subprocess
 import sys
 import time
 
-from kerb_sts import handler
-from kerb_sts import ntlmcredentials
-from kerb_sts import config
+from kerb_sts import auth
+from kerb_sts.config import Config
+from kerb_sts.handler import KerberosHandler
+
+DEFAULT_REGION = 'us-east-1'
 
 
 def _get_default_credentials_filename():
@@ -18,131 +19,188 @@ def _get_default_credentials_filename():
     :return: The path to the default credentials file
     """
 
-    home = os.path.expanduser('~')
-    awsconfigfile = '/.aws/credentials'
-
-    # Don"t use `os.path.join` because on Windows it will eat the directory
-    # path when a drive letter is return as part of the home directory.
-    filename = home + awsconfigfile
-
-    abs_filename = os.path.abspath(filename)
-    return abs_filename
+    return os.path.expanduser('~/.aws/credentials')
 
 
-def main():
+def _get_options():
+    """
+    Parses the command line options.
+    :return: an options object
+    """
     parser = argparse.ArgumentParser(description="Generates 1 hour temporary AWS IAM credentials.")
-    parser.add_argument('--adfs', help="ADFS IdP domain name (defaults to {0})".format(config.adfs),
-                        dest='adfs', default=config.adfs)
+    parser.add_argument('--adfs', help="ADFS IdP domain name",
+                        dest='adfs_url')
     parser.add_argument('-c', '--credentials_file', help="AWSCLI credentials file (defaults ~/.aws/credentials)",
                         dest='credentials_file', default=_get_default_credentials_filename())
+    parser.add_argument('--configure', help="Sets up Kerb-STS by generating a config file at ~/.kerb-sts/config",
+                        dest='configure', action='store_true', default=False)
     parser.add_argument('--daemon', help="Run as a daemon. This will auto-renew credentials every half hour",
                         dest='daemon', action='store_true', default=False)
     parser.add_argument('-r', '--default_role', help="Name of the Role to use as the default",
                         dest='default_role', default=None)
-    parser.add_argument('-d', '--domain', help="AD Domain if using a Kerberos keytab or NTLM auth",
+    parser.add_argument('-d', '--domain', help="AD Domain if using a Kerberos keytab or NTLM auth. Requires a username and password/keytab",
                         dest='domain', default=None)
-    parser.add_argument('--keytab', help="The Kerberos keytab if generating a temporary Kerberos token",
+    parser.add_argument('--keytab', help="The Kerberos keytab file. Requires a username and domain",
                         dest='keytab', default=None)
     parser.add_argument('--list', help="List the available roles",
                         dest='list', action='store_true', default=False)
-    parser.add_argument('-p', '--password', help="AD Password if generating a temporary Kerberos token",
+    parser.add_argument('-p', '--password', help="AD Password if generating a temporary Kerberos token. Requires a username and domain",
                         dest='password', default=None)
     parser.add_argument('--refresh', help="Time to wait (minutes) between refreshing the tokens.",
                         dest='refresh', default=30)
-    parser.add_argument('--region', help="AWS Region for STS (defaults to {0})".format(config.region),
-                        dest='region', default=config.region)
-    parser.add_argument('-u', '--username', help="AD Username if generating a temporary Kerberos token",
+    parser.add_argument('--region', help="AWS Region for STS (defaults to {})".format(DEFAULT_REGION),
+                        dest='region', default=DEFAULT_REGION)
+    parser.add_argument('-u', '--username', help="AD Username if generating a temporary Kerberos token. Requires a domain and password/keytab",
                         dest='username', default=None)
     parser.add_argument('-v', '--verbose', help="Turns on debug logging",
                         dest="verbose", action='store_true', default=None)
+    return parser.parse_args()
 
-    options = parser.parse_args()
 
+def _setup_logging(options):
+    """
+    Sets up logging based on some command line options.
+    :param options: options parsed from the command line
+    """
     if options.verbose:
         logging_level = logging.DEBUG
     else:
         logging_level = logging.INFO
     logging.basicConfig(format='%(asctime)s %(levelname)s: %(message)s',
                         datefmt='%m/%d/%Y %I:%M:%S %p', level=logging_level)
-    logging.debug("logging level set to {0}".format(logging_level))
+    logging.debug("logging level set to {}".format(logging_level))
 
-    if options.adfs:
-        url = options.adfs
-    else:
-        url = config.adfs
-    logging.debug("adfs url set to {0}".format(url))
 
-    credentials = None
-    authtype = 'kerberos'
+def _configure():
+    """
+    Generates a configuration file for subsequent runs to consume.
+    """
+    adfs_url = raw_input(
+        "ADFS AWS sign in URL ie: "
+        "https://yourdomain.com/adfs/ls/IdpInitiatedSignOn.aspx?loginToRp=urn:amazon:webservices): "
+    )
+    region = raw_input("AWS region. defaults to {}: ".format(DEFAULT_REGION))
+    if region == '':
+        region = DEFAULT_REGION
+
+    config = Config(adfs_url=adfs_url, region=region)
+    config.save()
+
+
+def _setup_config(options):
+    """
+    Creates a config object and overrides any values
+    provided on the command line.
+    :param options: parsed command line options
+    :return: the Config object
+    """
+    config = Config.load()
+
+    if options.adfs_url:
+        config.adfs_url = options.adfs_url
+    logging.debug("adfs url set to {}".format(config.adfs_url))
+
+    if options.region:
+        config.region = options.region
+    logging.debug("region set to {}".format(config.region))
+
+    return config
+
+
+def _setup_authenticator(options):
+    """
+    Creates an Authenticator object based on
+    what credential information was passed as arguments.
+    :param options: pasred command line options
+    :return: an Authenticator object
+    """
     if options.username and options.domain:
-        if options.keytab:
-            # Setup a temporary credentials cache
-            credentials_cache = os.path.join(os.getcwd(), 'credentials_cache')
-            os.environ['KRB5CCNAME'] = credentials_cache
-
-            # Call kinit to generate a Kerberos ticket for the given username and keytab
-            try:
-                subprocess.check_output(['kinit', '-c', credentials_cache, '-kt', options.keytab,
-                                         "{0}@{1}".format(options.username, options.domain)])
-            except subprocess.CalledProcessError as e:
-                sys.exit(1)
-
-            authtype = 'keytab'
-            logging.debug("set to use kerberos keytab")
-
-        elif options.password:
-            # No keytab was provided but a username was. Fall back to NTLM auth
-            authtype = 'ntlm'
-            credentials = ntlmcredentials.NtlmCredentials(username=options.username, password=options.password,
-                                                          domain=options.domain)
-            logging.debug("set to use ntlm auth")
-
+        if options.password:
+            authenticator = auth.NtlmAuthenticator(
+                username=options.username,
+                password=options.password,
+                domain=options.domain
+            )
+        elif options.keytab:
+            authenticator = auth.KeytabAuthenticator(
+                username=options.username,
+                keytab=options.keytab,
+                domain=options.domain
+            )
         else:
-            logging.error("username and domain provided but no password or keytab was provided. Cannot auth as user")
-            sys.exit(1)
-
+            raise Exception("username and domain provided but no password or keytab was given")
+    elif options.username or options.domain:
+        raise Exception("both username and domain are required for ntlm or keytab authentication")
     else:
-        logging.debug("no username or domain given. using kerberos auth")
-        try:
-            subprocess.check_output(['klist', '-s'])
-        except subprocess.CalledProcessError as e:
-            logging.info("no kerberos ticket found. running kinit")
-            try:
-                subprocess.check_output(['kinit'])
-            except subprocess.CalledProcessError as e:
-                logging.error("failed to generate a kerberos ticket")
-                sys.exit(1)
+        authenticator = auth.KerberosAuthenticator()
+
+    return authenticator
+
+
+def _generate_tokens(options, config, authenticator):
+    """
+    Generates a set of AWS IAM credentials for each available role
+    for the principal.
+    :param options: the parsed command line arguments
+    :param config: the kerb configuration
+    :param authenticator: the Authenticator object used to handle ADFS authentication
+    """
+    logging.info("--------------------------------")
+    if options.list:
+        logging.info("    listing available roles     ")
+    else:
+        logging.info("       generating tokens        ")
+    logging.info("--------------------------------")
+
+    logging.info("region: {}".format(config.region))
+    logging.info("url: {}".format(config.adfs_url))
+    logging.info("credentials file: {}".format(options.credentials_file))
+    if options.default_role:
+        logging.info("default role: {}".format(options.default_role))
+    logging.info("auth type: {}".format(authenticator.get_auth_type()))
+
+    h = KerberosHandler()
+    h.handle_sts_by_kerberos(config.region, config.adfs_url, options.credentials_file,
+                             options.default_role, options.list, authenticator)
+    logging.info("--------------------------------")
+
+
+def main():
+    """
+    Application entrypoint. Parses the command line options, sets up the configuration for the token
+    generation, and then starts generating token(s) for the given options.
+    :return:
+    """
+    options = _get_options()
+
+    _setup_logging(options)
+
+    if options.configure:
+        _configure()
+        sys.exit(0)
+
+    config = _setup_config(options)
+    if not config.is_valid():
+        logging.error(
+            "invalid configuration. please run --configure to generate a config file or supply a valid ADFS URL")
+        sys.exit(1)
+
+    try:
+        authenticator = _setup_authenticator(options)
+    except Exception as ex:
+        logging.error(ex)
+        sys.exit(1)
 
     while True:
-        if options.list:
-            logging.info("=== listing available roles ===")
-        else:
-            logging.info("=== generating tokens ===")
-        logging.info("region: {0}".format(options.region))
-        logging.info("url: {0}".format(url))
-        logging.info("credentials file: {0}".format(options.credentials_file))
-        logging.info("auth type: {0}".format(authtype))
-
-        if credentials:
-            logging.info("user: {0}".format(credentials.username))
-
-        if credentials or (options.domain and options.keytab):
-            logging.info("domain: {0}".format(options.domain))
-
         try:
-            h = handler.KerberosHandler()
-            h.handle_sts_by_kerberos(options.region, url, options.credentials_file,
-                                     options.default_role, options.list, credentials)
-            logging.info("=== completed ===")
-
+            _generate_tokens(options, config, authenticator)
         except Exception as ex:
             logging.error(ex)
             sys.exit(1)
 
         if not options.daemon:
             break
-
-        # Sleep for 30 minutes
+        logging.info('')
         time.sleep(60 * options.refresh)
 
 if __name__ == "__main__":

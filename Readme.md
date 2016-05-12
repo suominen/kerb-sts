@@ -11,9 +11,13 @@ a AD domain password or provide AWS credentials. However, users can also
 authenticate using NTLM with their username and password or with a Kerberos keytab.
 
 ## Configuration
-Before building, the kerb_sts/config.py file should be setup for your organization. This file contains
-the default URL of your ADFS portal. This config file gets bundled into the distribution making
-it easy to setup these defaults for your entire organization.
+Kerb-STS looks for configuration in the ~/.kerb-sts/config.json file. This file contains
+the URL of the ADFS AWS login page and the default region. Users can generate this file with Kerb-STS:
+```
+kerb-sts --configure
+```
+This will prompt the user for those values and then serialize the configuration. Users can override
+either of the configured values on the command line.
 
 ## Building a Wheel
 The easiest way to install and distribute kerb-sts is using a wheel.
