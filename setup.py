@@ -55,7 +55,7 @@ setup(
         'beautifulsoup4>=4.4.1',
         'boto>=2.39.0',
         'requests-ntlm>=0.2.0',
-        'requests-kerberos>=0.8.0',
+        'requests-kerberos==0.8.0',
         'configparser==3.5.0b2'
     ],
     

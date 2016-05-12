@@ -1,6 +1,3 @@
-#!/usr/bin/python
-# -*- coding: utf-8 -*-
-
 import base64
 import boto.sts
 import configparser
@@ -10,8 +7,6 @@ import requests
 import xml.etree.ElementTree as ET
 
 from bs4 import BeautifulSoup
-from requests_kerberos import HTTPKerberosAuth, OPTIONAL
-from requests_ntlm import HttpNtlmAuth
 
 from kerb_sts.awsrole import AWSRole
 
@@ -32,7 +27,7 @@ class KerberosHandler:
         self.output_format = 'json'
         self.ssl_verification = True
 
-    def handle_sts_by_kerberos(self, region, url, config_filename, default_role, list_only, credentials=None):
+    def handle_sts_by_kerberos(self, region, url, config_filename, default_role, list_only, authenticator):
         """
         Entry point for generating a set of temporary tokens from AWS.
         :param region: The AWS region tokens are being requested for
@@ -40,29 +35,25 @@ class KerberosHandler:
         :param config_filename: Where should the tokens be written to
         :param default_role: Which IAM role should be set as the default in the config file
         :param list_only: If set, the IAM roles available will just be printed instead of assumed
-        :param credentials: Optional credentials if NTLM auth is preferred
+        :param authenticator: the Authenticator
         """
 
         session = requests.Session()
         headers = {'User-Agent': 'Mozilla/5.0 (compatible, MSIE 11, Windows NT 6.3; Trident/7.0; rv:11.0) like Gecko'}
 
-        # If credentials were provided, use them to log in using NTLM auth, else use Kerberos auth
-        if credentials and credentials.is_valid:
-            auth=HttpNtlmAuth("{0}\\{1}".format(credentials.domain, credentials.username),
-                              credentials.password, session)
-        else:
-            auth=HTTPKerberosAuth(mutual_authentication=OPTIONAL)
-
         # Query ADFS for a SAML token
-        response = session.get(url, verify=self.ssl_verification, headers=headers, auth=auth)
-        logging.debug("received {0} adfs response".format(response.status_code))
+        response = session.get(
+            url,
+            verify=self.ssl_verification,
+            headers=headers,
+            auth=authenticator.get_auth_handler(session)
+        )
+        logging.debug("received {} adfs response".format(response.status_code))
 
         if response.status_code != requests.codes.ok:
-            if response.status_code == requests.codes.unauthorized and not credentials:
-                raise Exception("unathorized response from adfs. run `kinit` to generate kerberos ticket")
-            else:
-                raise Exception("did not get a valid adfs reply. response was: {0} {1}"
-                                .format(response.status_code, response.text))
+            raise Exception(
+                "did not get a valid adfs reply. response was: {} {}".format(response.status_code, response.text)
+            )
 
         # We got a successful response from ADFS. Parse the assertion and pass it to AWS
         self._handle_sts_from_response(response, region, config_filename, default_role, list_only)
@@ -112,13 +103,25 @@ class KerberosHandler:
                 aws_roles.insert(index, new_aws_role)
                 aws_roles.remove(aws_role)
 
+        # If the user supplied to a default role make sure
+        # that role is available to them.
+        if default_role is not None:
+            found_default_role = False
+            for aws_role in aws_roles:
+                name = AWSRole(aws_role).name
+                if name == default_role:
+                    found_default_role = True
+                    break
+            if not found_default_role:
+                raise Exception("provided default role not found in list of available roles")
+
         # Go through each of the available roles and
         # attempt to get temporary tokens for each
         for aws_role in aws_roles:
             profile = AWSRole(aws_role).name
 
             if list_only:
-                logging.info("role: {0}".format(profile))
+                logging.info("role: {}".format(profile))
             else:
                 token = self._bind_assertion_to_role(assertion, aws_role, profile,
                                                      region, config_filename, default_role)
@@ -129,9 +132,9 @@ class KerberosHandler:
                 expires_utc = token.credentials.expiration
 
                 if default_role == profile:
-                    logging.info("default role: {0} until {1}".format(profile, expires_utc))
+                    logging.info("default role: {} until {}".format(profile, expires_utc))
                 else:
-                    logging.info("role: {0} until {1}".format(profile, expires_utc))
+                    logging.info("role: {} until {}".format(profile, expires_utc))
 
     def _bind_assertion_to_role(self, assertion, role, profile, region, config_filename, default_role):
         """
@@ -192,7 +195,8 @@ class KerberosHandler:
 
         return token
 
-    def _set_config_section(self, config, section, **kwargs):
+    @staticmethod
+    def _set_config_section(config, section, **kwargs):
         """
         Set the configuration section in the file with the properties given. The section
         must exist before calling this method.
