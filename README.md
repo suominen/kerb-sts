@@ -26,15 +26,6 @@ can also manually create the configuration file which should look like the follo
 ```
 Users can override either of the configured values on the command line.
 
-
-## Building a Wheel
-The easiest way to install and distribute kerb-sts is using a wheel.
-A distribution can be built by running:
-```
-python setup.py bdist_wheel
-```
-That should output a .whl file in the dist directory.
-
 ## Installation
 * *Note: Python 2.7.10 is the minimal version supported*
 * *Note: All platforms have been tested with both Python 2.7 and 3.4*
@@ -42,36 +33,31 @@ That should output a .whl file in the dist directory.
 ### OSX
 * *Note: If you are using El Capitan, refer to the subsequent OSX section*
 
-0. Install [Python] (https://www.python.org/downloads/)
-1. sudo easy_install pip
-2. sudo pip install dist/kerb_sts-0.0.0-py2.py-none.any.whl
+0. sudo easy_install pip
+1. sudo pip install kerb-sts
 
 ### OSX - El Capitan
 * *Note: El Capitan forces the version of some modules which directly interfere with kerb-sts. In order to
 get it to work users need to either use a version of Python that was not included with the OS or need
 to follow these instructions which leverage virtual environments.*
 
-0. Install [Python] (https://www.python.org/downloads/)
-1. sudo easy_install pip virtualenv
-2. sudo pip install --upgrade pip
-3. virtualenv ~/kerb-sts
-4. source ~/kerb-sts/bin/activate
-5. sudo pip install dist/kerb_sts-0.0.0-py2.py-none.any.whl --ignore-installed six
-6. deactivate
-7. sudo ln -s ~/kerb-sts/bin/kerb-sts /usr/local/bin/kerb-sts
+0. sudo easy_install pip virtualenv
+1. virtualenv ~/kerb-sts
+2. source ~/kerb-sts/bin/activate
+3. sudo pip install kerb-sts --ignore-installed six
+4. deactivate
+5. sudo ln -s ~/kerb-sts/bin/kerb-sts /usr/local/bin/kerb-sts
 
 ### Windows
 0. Install [Python] (https://www.python.org/downloads/)
 1. Ensure python and python/scripts are on the PATH
-2. pip install --upgrade pip
-3. Install pywin32 from [SourceForge] (https://sourceforge.net/projects/pywin32/files/pywin32/Build%20220/). Follow the instructions to ensure you get the correct version.
-4. pip install dist/kerb_sts-0.0.0-py2.py-none.any.whl
+2. Install pywin32 from [SourceForge] (https://sourceforge.net/projects/pywin32/files/pywin32/Build%20220/). Follow the instructions to ensure you get the correct version.
+3. pip install kerb-sts
 
 ### Ubuntu
 0. sudo apt-get update
 1. sudo apt-get install -y krb5-kdc libkrb5-dev python-setuptools python3-pip
-2. sudo pip3 install --upgrade pip
-3. sudo pip install dist/kerb_sts-0.0.0-py2.py-none.any.whl
+2. sudo pip install kerb-sts
 
 ## Usage
 If the install went smoothly `kerb-sts` should be on your path. There are a lot of configuration options.
@@ -98,7 +84,7 @@ By passing in a `--daemon` flag, the script will continue running and update the
 half hour. The refresh time can be set with the `--refresh` argument, but remember
 the tokens only last for one hour.
 ```
-kerb-sts -r [iam-role-to-assume] --daemon
+kerb-sts -r iam-role-to-assume --daemon
 ```
 
 #### NTLM Auth
@@ -138,6 +124,14 @@ If you are having issues authenticating with Kerberos, make sure you can run `ki
 your password and then login successfully. You can view your current Kerberos tickets with `klist`. If you want to
 ensure Kerberos is working properly you can delete all of your tickets with `kdestroy -A` and then try to get another
 ticket issued by running `kinit`.
+
+## Building a Distribution
+The easiest way to install and distribute kerb-sts is using a wheel.
+A distribution can be built by running:
+```
+python setup.py bdist_wheel
+```
+That should output a .whl file in the dist directory which can be installed with pip.
 
 ## Development
 The recommended way to install locally from source is to use a virtual environment. From the root
