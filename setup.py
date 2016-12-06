@@ -43,7 +43,7 @@ setup(
     install_requires=[
         'beautifulsoup4>=4.4.1',
         'boto>=2.43.0',
-        'boto3>=1.4.3',
+        'boto3>=1.4.2',
         'botocore>=1.4.80',
         'requests>=2.12.3',
         'requests-ntlm>=0.3.0',
