@@ -28,10 +28,10 @@ Users can override either of the configured values on the command line.
 
 ## Installation
 * *Note: Python 2.7.10 is the minimal version supported*
-* *Note: All platforms have been tested with both Python 2.7 and 3.4*
+* *Note: All platforms have been tested with both Python 2.7 and 3.5*
 
 ### OSX
-* *Note: If you are using El Capitan, refer to the subsequent OSX section*
+* *Note: If you are using El Capitan or Sierra, refer to the subsequent OSX section*
 
 0. sudo easy_install pip
 1. sudo pip install kerb-sts
@@ -47,6 +47,12 @@ to follow these instructions which leverage virtual environments.*
 3. sudo pip install kerb-sts --ignore-installed six
 4. deactivate
 5. sudo ln -s ~/kerb-sts/bin/kerb-sts /usr/local/bin/kerb-sts
+
+### MacOS Sierra
+0. You will need to update your version of Python to 2.7.12+; Homebrew is the easiest method.
+1. You will also need to install/update the XCODE Development Extensions
+  1a. sudo xcode-select install
+2. You can then just run sudo pip install kerb-sts
 
 ### Windows
 0. Install [Python] (https://www.python.org/downloads/)
