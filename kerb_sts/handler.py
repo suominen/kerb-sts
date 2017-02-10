@@ -164,24 +164,26 @@ class KerberosHandler:
 
         # If the default_role was passed in on the command line we will overwrite
         # the [default] section of the credentials file
+        sections = []
         if default_role == profile:
-            section = default_section
-        else:
-            section = profile
-            # Make sure the section exists
-            if not config.has_section(section):
-                config.add_section(section)
+            sections.append(default_section)
 
-        self._set_config_section(config,
-                                 section,
-                                 output=self.output_format,
-                                 region=region,
-                                 aws_role_arn=role_arn,
-                                 aws_access_key_id=token.credentials.access_key,
-                                 aws_secret_access_key=token.credentials.secret_key,
-                                 aws_session_token=token.credentials.session_token,
-                                 aws_security_token=token.credentials.session_token,
-                                 aws_session_expires_utc=token.credentials.expiration)
+        # Make sure the section exists
+        if not config.has_section(profile):
+            config.add_section(profile)
+        sections.append(profile)
+
+        for section in sections:
+            self._set_config_section(config,
+                                     section,
+                                     output=self.output_format,
+                                     region=region,
+                                     aws_role_arn=role_arn,
+                                     aws_access_key_id=token.credentials.access_key,
+                                     aws_secret_access_key=token.credentials.secret_key,
+                                     aws_session_token=token.credentials.session_token,
+                                     aws_security_token=token.credentials.session_token,
+                                     aws_session_expires_utc=token.credentials.expiration)
 
         # Write the updated config file
         if not os.path.exists(os.path.dirname(config_filename)):
