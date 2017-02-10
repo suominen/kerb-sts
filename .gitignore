@@ -1,3 +1,7 @@
+#OSX
+.DS_Store
+.localized
+
 # IntelliJ
 .idea/
 
@@ -66,4 +70,3 @@ docs/_build/
 
 # PyBuilder
 target/
-

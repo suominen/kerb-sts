@@ -42,12 +42,16 @@ setup(
     ],
     install_requires=[
         'beautifulsoup4>=4.4.1',
-        'boto>=2.39.0',
-        'requests-ntlm>=0.2.0',
-        'requests-kerberos==0.8.0',
-        'configparser==3.5.0b2'
+        'boto>=2.43.0',
+        'boto3>=1.4.2',
+        'botocore>=1.4.80',
+        'requests>=2.12.3',
+        'requests-ntlm>=0.3.0',
+        'ntlm-auth==1.0.2',
+        'requests-kerberos>=0.11.0',
+        'configparser==3.5.0'
     ],
-    
+
     entry_points={
         'console_scripts': [
             'kerb-sts=kerb_sts.__main__:main'
