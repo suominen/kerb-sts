@@ -45,11 +45,12 @@ setup(
         'boto>=2.43.0',
         'boto3>=1.4.2',
         'botocore>=1.4.80',
-        'requests>=2.12.3',
-        'requests-ntlm>=0.3.0',
+        'configparser==3.5.0',
         'ntlm-auth==1.0.2',
+        'requests>=2.12.3',
         'requests-kerberos>=0.11.0',
-        'configparser==3.5.0'
+        'requests-ntlm>=0.3.0',
+        'six>=1.10.0'
     ],
 
     entry_points={

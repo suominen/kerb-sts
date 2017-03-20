@@ -18,6 +18,8 @@ import os
 import sys
 import time
 
+from six.moves import input
+
 from kerb_sts import auth
 from kerb_sts.config import Config
 from kerb_sts.handler import KerberosHandler
@@ -89,11 +91,11 @@ def _configure():
     """
     Generates a configuration file for subsequent runs to consume.
     """
-    adfs_url = raw_input(
+    adfs_url = input(
         "ADFS AWS sign in URL ie: "
         "https://yourdomain.com/adfs/ls/IdpInitiatedSignOn.aspx?loginToRp=urn:amazon:webservices): "
     )
-    region = raw_input("AWS region. defaults to {}: ".format(DEFAULT_REGION))
+    region = input("AWS region. defaults to {}: ".format(DEFAULT_REGION))
     if region == '':
         region = DEFAULT_REGION
 
