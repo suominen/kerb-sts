@@ -41,12 +41,14 @@ class KerberosHandler:
         self.output_format = 'json'
         self.ssl_verification = True
 
-    def handle_sts_by_kerberos(self, region, url, config_filename, default_role, list_only, authenticator):
+    def handle_sts_by_kerberos(self, region, url, credentials_filename, config_filename,
+                               default_role, list_only, authenticator):
         """
         Entry point for generating a set of temporary tokens from AWS.
         :param region: The AWS region tokens are being requested for
         :param url: The URL of the ADFS server to auth against
-        :param config_filename: Where should the tokens be written to
+        :param credentials_filename: Where should the tokens be written to
+        :param config_filename: Where should the region/format be written to
         :param default_role: Which IAM role should be set as the default in the config file
         :param list_only: If set, the IAM roles available will just be printed instead of assumed
         :param authenticator: the Authenticator
@@ -70,15 +72,16 @@ class KerberosHandler:
             )
 
         # We got a successful response from ADFS. Parse the assertion and pass it to AWS
-        self._handle_sts_from_response(response, region, config_filename, default_role, list_only)
+        self._handle_sts_from_response(response, region, credentials_filename, config_filename, default_role, list_only)
 
-    def _handle_sts_from_response(self, response, region, config_filename, default_role, list_only):
+    def _handle_sts_from_response(self, response, region, credentials_filename, config_filename, default_role, list_only):
         """
         Takes a successful SAML response, parses it for valid AWS IAM roles, and then reaches out to
         AWS and requests temporary tokens for each of the IAM roles.
         :param response: The SAML response from a previous request to ADFS
         :param region: The AWS region tokens are being requested for
-        :param config_filename: Where shoujld the tokens be written to
+        :param credentials_filename: Where should the region/format be written to
+        :param config_filename: Where should the tokens be written to
         :param default_role: Which IAM role should be as as the default in the config file
         :param list_only: If set, the IAM roles available will just be printed instead of assumed
         """
@@ -138,7 +141,7 @@ class KerberosHandler:
                 logging.info("role: {}".format(profile))
             else:
                 token = self._bind_assertion_to_role(assertion, aws_role, profile,
-                                                     region, config_filename, default_role)
+                                                     region, credentials_filename, config_filename, default_role)
 
                 if not token:
                     raise Exception("did not receive a valid token from aws.")
@@ -150,13 +153,15 @@ class KerberosHandler:
                 else:
                     logging.info("role: {} until {}".format(profile, expires_utc))
 
-    def _bind_assertion_to_role(self, assertion, role, profile, region, config_filename, default_role):
+    def _bind_assertion_to_role(self, assertion, role, profile, region,
+                                credentials_filename, config_filename, default_role):
         """
         Attempts to assume an IAM role using a given SAML assertion.
         :param assertion: A SAML assertion authenticating the user
         :param role: The IAM role being assumed
         :param profile: The name of the role
         :param region: The region the role is being assumed in
+        :param credentials_filename: Output file for the regions/formats for each profile
         :param config_filename: Output file for the generated tokens
         :param default_role: Which role should be set as default in the config
         :return token: A valid token with temporary IAM credentials
@@ -173,6 +178,10 @@ class KerberosHandler:
         # Write the AWS STS token into the AWS credential file
         # Read in the existing config file
         default_section = 'default'
+
+        credentials_config = configparser.RawConfigParser(default_section=default_section)
+        credentials_config.read(credentials_filename)
+
         config = configparser.RawConfigParser(default_section=default_section)
         config.read(config_filename)
 
@@ -183,12 +192,15 @@ class KerberosHandler:
             sections.append(default_section)
 
         # Make sure the section exists
+        if not credentials_config.has_section(profile):
+            credentials_config.add_section(profile)
         if not config.has_section(profile):
             config.add_section(profile)
+
         sections.append(profile)
 
         for section in sections:
-            self._set_config_section(config,
+            self._set_config_section(credentials_config,
                                      section,
                                      output=self.output_format,
                                      region=region,
@@ -198,13 +210,23 @@ class KerberosHandler:
                                      aws_session_token=token.credentials.session_token,
                                      aws_security_token=token.credentials.session_token,
                                      aws_session_expires_utc=token.credentials.expiration)
+            self._set_config_section(config, section, output=self.output_format, region=region)
 
         # Write the updated config file
+        if not os.path.exists(os.path.dirname(credentials_filename)):
+            try:
+                os.makedirs(os.path.dirname(credentials_filename))
+            except OSError as ex:
+                raise Exception("could not create credential file directory")
+
         if not os.path.exists(os.path.dirname(config_filename)):
             try:
                 os.makedirs(os.path.dirname(config_filename))
             except OSError as ex:
-                raise Exception("could not create credential file directory")
+                raise Exception("could not create config file directory")
+
+        with open(credentials_filename, 'w+') as fp:
+            credentials_config.write(fp)
 
         with open(config_filename, 'w+') as fp:
             config.write(fp)

@@ -38,6 +38,17 @@ def _get_default_credentials_filename():
     return os.path.expanduser('~/.aws/credentials')
 
 
+def _get_default_config_filename():
+    """
+    Returns the path to the default AWS credentials file. This
+    is where the temporary access keys will be stored unless
+    otherwised specified by the user.
+    :return: The path to the default credentials file
+    """
+
+    return os.path.expanduser('~/.aws/config')
+
+
 def _get_options():
     """
     Parses the command line options.
@@ -48,6 +59,8 @@ def _get_options():
                         dest='adfs_url')
     parser.add_argument('-c', '--credentials_file', help="AWSCLI credentials file (defaults ~/.aws/credentials)",
                         dest='credentials_file', default=_get_default_credentials_filename())
+    parser.add_argument('-config_file', help="AWSCLI config file (defaults ~/.aws/config)",
+                        dest='config_file', default=_get_default_config_filename())
     parser.add_argument('--configure', help="Sets up Kerb-STS by generating a config file at ~/.kerb-sts/config",
                         dest='configure', action='store_true', default=False)
     parser.add_argument('--daemon', help="Run as a daemon. This will auto-renew credentials every half hour",
@@ -176,7 +189,7 @@ def _generate_tokens(options, config, authenticator):
     logging.info("auth type: {}".format(authenticator.get_auth_type()))
 
     h = KerberosHandler()
-    h.handle_sts_by_kerberos(config.region, config.adfs_url, options.credentials_file,
+    h.handle_sts_by_kerberos(config.region, config.adfs_url, options.credentials_file, options.config_file,
                              options.default_role, options.list, authenticator)
     logging.info("--------------------------------")
 
