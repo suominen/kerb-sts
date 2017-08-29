@@ -132,12 +132,22 @@ ensure Kerberos is working properly you can delete all of your tickets with `kde
 ticket issued by running `kinit`.
 
 ## Building a Distribution
+### Python
 The easiest way to install and distribute kerb-sts is using a wheel.
 A distribution can be built by running:
 ```
 python setup.py bdist_wheel
 ```
 That should output a .whl file in the dist directory which can be installed with pip.
+
+### Windows EXE
+Kerb-STS can also be built into a standalone executable with Python bundled to ease installation.
+```
+python setup.py install
+pip install pyinstaller
+pyinstaller --onfile kerb_sts/__main__.py
+```
+This will produce a dist/\_\_main__.exe which can then be renamed/run as a standalone exe.
 
 ## Development
 The recommended way to install locally from source is to use a virtual environment. From the root
