@@ -12,7 +12,7 @@ authenticate using NTLM with their username and password or with a Kerberos keyt
 Kerb-STS looks for configuration in the ~/.kerb-sts/config.json file. This file contains the following fields: 
 
 Field | Required? | Description
---- |:--- |:---
+:--- |:--- |:---
 idp_url | Yes | URL where the SAML authentication requests are sent
 region | Yes | Region for AWS credentials
 kerb_domain | No | Domain name used for the Kerberos GSS exchange. This is set to the domain name of `idp_url` by default
