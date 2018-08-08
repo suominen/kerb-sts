@@ -40,7 +40,8 @@ class KerberosAuthenticator(Authenticator):
     authenticate a user who's machine is logged into to the Domain.
     """
 
-    def __init__(self):
+    def __init__(self, kerb_hostname=None):
+        self.kerb_hostname = kerb_hostname if kerb_hostname else None
         # Windows does not have support for `klist`. Assume
         # Windows users have a valid Kerberos ticket.
         if os.name != 'nt':
@@ -54,7 +55,7 @@ class KerberosAuthenticator(Authenticator):
                     raise Exception("failed to generate a kerberos ticket")
 
     def get_auth_handler(self, session):
-        return HTTPKerberosAuth(mutual_authentication=OPTIONAL)
+        return HTTPKerberosAuth(mutual_authentication=OPTIONAL, hostname_override=self.kerb_hostname)
 
     @staticmethod
     def get_auth_type():

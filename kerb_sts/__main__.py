@@ -55,8 +55,8 @@ def _get_options():
     :return: an options object
     """
     parser = argparse.ArgumentParser(description="Generates 1 hour temporary AWS IAM credentials.")
-    parser.add_argument('--adfs', help="ADFS IdP domain name",
-                        dest='adfs_url')
+    parser.add_argument('--idp_url', help="IdP domain name", dest='idp_url')
+    parser.add_argument('--kerb_hostname', help="Kerberos hostname (defaults to IdP domain)", dest='kerb_hostname')
     parser.add_argument('-c', '--credentials_file', help="AWSCLI credentials file (defaults ~/.aws/credentials)",
                         dest='credentials_file', default=_get_default_credentials_filename())
     parser.add_argument('-config_file', help="AWSCLI config file (defaults ~/.aws/config)",
@@ -104,15 +104,18 @@ def _configure():
     """
     Generates a configuration file for subsequent runs to consume.
     """
-    adfs_url = input(
-        "ADFS AWS sign in URL ie: "
+    idp_url = input(
+        "IdP AWS sign in URL i.e.: "
         "https://yourdomain.com/adfs/ls/IdpInitiatedSignOn.aspx?loginToRp=urn:amazon:webservices): "
     )
-    region = input("AWS region. defaults to {}: ".format(DEFAULT_REGION))
+    kerb_hostname = input(
+        "Kerberos hostname. Defaults to domain of IdP URL: "
+    )
+    region = input("AWS region. Defaults to {}: ".format(DEFAULT_REGION))
     if region == '':
         region = DEFAULT_REGION
 
-    config = Config(adfs_url=adfs_url, region=region)
+    config = Config(idp_url=idp_url, region=region, kerb_hostname=kerb_hostname)
     config.save()
 
 
@@ -125,9 +128,9 @@ def _setup_config(options):
     """
     config = Config.load()
 
-    if options.adfs_url:
-        config.adfs_url = options.adfs_url
-    logging.debug("adfs url set to {}".format(config.adfs_url))
+    if options.idp_url:
+        config.idp_url = options.idp_url
+    logging.debug("IdP url set to {}".format(config.idp_url))
 
     if options.region:
         config.region = options.region
@@ -136,7 +139,7 @@ def _setup_config(options):
     return config
 
 
-def _setup_authenticator(options):
+def _setup_authenticator(options, config):
     """
     Creates an Authenticator object based on
     what credential information was passed as arguments.
@@ -161,8 +164,7 @@ def _setup_authenticator(options):
     elif options.username or options.domain:
         raise Exception("both username and domain are required for ntlm or keytab authentication")
     else:
-        authenticator = auth.KerberosAuthenticator()
-
+        authenticator = auth.KerberosAuthenticator(config.kerb_hostname)
     return authenticator
 
 
@@ -172,7 +174,7 @@ def _generate_tokens(options, config, authenticator):
     for the principal.
     :param options: the parsed command line arguments
     :param config: the kerb configuration
-    :param authenticator: the Authenticator object used to handle ADFS authentication
+    :param authenticator: the Authenticator object used to handle IdP authentication
     """
     logging.info("--------------------------------")
     if options.list:
@@ -182,14 +184,14 @@ def _generate_tokens(options, config, authenticator):
     logging.info("--------------------------------")
 
     logging.info("region: {}".format(config.region))
-    logging.info("url: {}".format(config.adfs_url))
+    logging.info("url: {}".format(config.idp_url))
     logging.info("credentials file: {}".format(options.credentials_file))
     if options.default_role:
         logging.info("default role: {}".format(options.default_role))
     logging.info("auth type: {}".format(authenticator.get_auth_type()))
 
     h = KerberosHandler()
-    h.handle_sts_by_kerberos(config.region, config.adfs_url, options.credentials_file, options.config_file,
+    h.handle_sts_by_kerberos(config.region, config.idp_url, options.credentials_file, options.config_file,
                              options.default_role, options.list, authenticator)
     logging.info("--------------------------------")
 
@@ -211,11 +213,11 @@ def main():
     config = _setup_config(options)
     if not config.is_valid():
         logging.error(
-            "invalid configuration. please run --configure to generate a config file or supply a valid ADFS URL")
+            "invalid configuration. please run --configure to generate a config file or supply a valid IdP URL")
         sys.exit(1)
 
     try:
-        authenticator = _setup_authenticator(options)
+        authenticator = _setup_authenticator(options, config)
     except Exception as ex:
         logging.error(ex)
         sys.exit(1)
@@ -231,6 +233,7 @@ def main():
             break
         logging.info('')
         time.sleep(60 * options.refresh)
+
 
 if __name__ == "__main__":
     main()
