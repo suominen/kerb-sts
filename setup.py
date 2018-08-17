@@ -47,7 +47,7 @@ setup(
         'configparser==3.5.0',
         'ntlm-auth==1.0.2',
         'requests>=2.12.3',
-        'requests-kerberos>=0.11.0',
+        'requests-kerberos==0.11.0',
         'requests-ntlm>=0.3.0',
         'six>=1.10.0'
     ],
