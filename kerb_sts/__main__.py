@@ -105,13 +105,12 @@ def _configure():
     Generates a configuration file for subsequent runs to consume.
     """
     idp_url = input(
-        "IdP AWS sign in URL i.e.: "
-        "https://yourdomain.com/adfs/ls/IdpInitiatedSignOn.aspx?loginToRp=urn:amazon:webservices): "
+        "IdP AWS sign in URL: "
     )
     kerb_hostname = input(
-        "Kerberos hostname. Defaults to domain of IdP URL: "
+        "Kerberos hostname (default: IdP AWS sign in URL domain): "
     )
-    region = input("AWS region. Defaults to {}: ".format(DEFAULT_REGION))
+    region = input("AWS region (default: {}): ".format(DEFAULT_REGION))
     if region == '':
         region = DEFAULT_REGION
 

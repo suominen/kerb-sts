@@ -14,6 +14,7 @@ Kerb-STS looks for configuration in the ~/.kerb-sts/config.json file. This file 
 Field | Required? | Description
 :--- |:--- |:---
 idp_url | Yes | URL where the SAML authentication requests are sent
+adfs_url | No | **deprecated** URL where the SAML authentication requests are sent
 region | Yes | Region for AWS credentials
 kerb_domain | No | Domain name used for the Kerberos GSS exchange. This is set to the domain name of `idp_url` by default
 

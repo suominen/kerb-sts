@@ -33,6 +33,7 @@ class Config:
     the tool.
     """
     IDP_URL_KEY = 'idp_url'
+    ADFS_URL_KEY = 'adfs_url'
     KERB_HOSTNAME_KEY = 'kerb_hostname'
     REGION_KEY = 'region'
 
@@ -81,6 +82,8 @@ class Config:
                 if config_json:
                     if Config.IDP_URL_KEY in config_json:
                         config.idp_url = str(config_json[Config.IDP_URL_KEY])
+                    elif Config.ADFS_URL_KEY in config_json:
+                        config.idp_url = str(config_json[Config.ADFS_URL_KEY])
 
                     if Config.KERB_HOSTNAME_KEY in config_json:
                         config.kerb_hostname = str(config_json[Config.KERB_HOSTNAME_KEY])
