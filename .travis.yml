@@ -4,7 +4,9 @@ python:
 - '3.3'
 - '3.4'
 - '3.5'
-install: python setup.py install
+install:
+  - pip install --upgrade "setuptools<40.0.0"
+  - python setup.py install
 script: nosetests
 deploy:
   provider: pypi

@@ -32,11 +32,14 @@ class Config:
     The Config object stores connection configuration for
     the tool.
     """
+    IDP_URL_KEY = 'idp_url'
     ADFS_URL_KEY = 'adfs_url'
+    KERB_HOSTNAME_KEY = 'kerb_hostname'
     REGION_KEY = 'region'
 
-    def __init__(self, adfs_url, region):
-        self.adfs_url = adfs_url
+    def __init__(self, idp_url, kerb_hostname, region):
+        self.idp_url = idp_url
+        self.kerb_hostname = kerb_hostname
         self.region = region
 
     def save(self, filename=_get_default_config_filename()):
@@ -47,7 +50,11 @@ class Config:
         if not os.path.exists(os.path.dirname(filename)):
             os.makedirs(os.path.dirname(filename))
 
-        dictionary = {Config.ADFS_URL_KEY: self.adfs_url, Config.REGION_KEY: self.region}
+        dictionary = {
+            Config.IDP_URL_KEY: self.idp_url,
+            Config.KERB_HOSTNAME_KEY: self.kerb_hostname,
+            Config.REGION_KEY: self.region
+        }
         with open(filename, 'w') as f:
             json.dump(dictionary, f)
             logging.info("config file saved to {}".format(filename))
@@ -57,7 +64,7 @@ class Config:
         Validates that the Config object is valid (non-null non-empty values).
         :return: True if the Config is valid
         """
-        return (self.adfs_url is not None and self.adfs_url is not '' and
+        return (self.idp_url is not None and self.idp_url is not '' and
                 self.region is not None and self.region is not '')
 
     @staticmethod
@@ -68,13 +75,18 @@ class Config:
         :param filename: the path to the config file
         :return: a Config object constructed from the filename's contents
         """
-        config = Config(adfs_url='', region='')
+        config = Config(idp_url='', kerb_hostname='', region='')
         try:
             with open(filename) as f:
                 config_json = json.loads(f.read())
                 if config_json:
-                    if Config.ADFS_URL_KEY in config_json:
-                        config.adfs_url = str(config_json[Config.ADFS_URL_KEY])
+                    if Config.IDP_URL_KEY in config_json:
+                        config.idp_url = str(config_json[Config.IDP_URL_KEY])
+                    elif Config.ADFS_URL_KEY in config_json:
+                        config.idp_url = str(config_json[Config.ADFS_URL_KEY])
+
+                    if Config.KERB_HOSTNAME_KEY in config_json:
+                        config.kerb_hostname = str(config_json[Config.KERB_HOSTNAME_KEY])
 
                     if Config.REGION_KEY in config_json:
                         config.region = str(config_json[Config.REGION_KEY])

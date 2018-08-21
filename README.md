@@ -1,27 +1,33 @@
 # AWS KERBEROS STS
-Based on the ADSF-CLI script  [originally posted by Quint Van Deman] (https://blogs.aws.amazon.com/security/post/Tx1LDN0UBGJJ26Q/How-to-Implement-Federated-API-and-CLI-Access-Using-SAML-2-0-and-AD-FS)
+Based on the ADSF-CLI script  [originally posted by Quint Van Deman] (https://blogs.aws.amazon.com/security/post/Tx1LDN0UBGJJ26Q/How-to-Implement-Federated-API-and-CLI-Access-Using-SAML-2-0-and-AD-FS).
 
 ## Overview
-This script provides a seamless mechanism for federating the AWS CLI. When
-properly configured this script allows a user to get a short lived (1 hour) set of
-credentials for each authorized role.
+This script provides a seamless mechanism for federating the AWS CLI. When properly configured, this script allows a user to get a short lived (1 hour) set of credentials for each authorized role.
 
-The script leverages Kerberos and ADFS to avoid any need for the user to enter
-a AD domain password or provide AWS credentials. However, users can also
+The script leverages Kerberos and a [SAML-compatible IdP](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_create_saml.html) to avoid any need for the user to enter
+an AD domain password, or provide AWS credentials. However, users can also
 authenticate using NTLM with their username and password or with a Kerberos keytab.
 
 ## Configuration
-Kerb-STS looks for configuration in the ~/.kerb-sts/config.json file. This file contains
-the URL of the ADFS AWS login page and the default region. Users can generate this file with Kerb-STS:
+Kerb-STS looks for configuration in the ~/.kerb-sts/config.json file. This file contains the following fields: 
+
+Field | Required? | Description
+:--- |:--- |:---
+idp_url | Yes | URL where the SAML authentication requests are sent
+adfs_url | No | **deprecated** URL where the SAML authentication requests are sent
+region | Yes | Region for AWS credentials
+kerb_domain | No | Domain name used for the Kerberos GSS exchange. This is set to the domain name of `idp_url` by default
+
+Users can generate this file with Kerb-STS:
 ```
 kerb-sts --configure
 ```
 This will prompt the user for those values and then serialize the configuration. Users
-can also manually create the configuration file which should look like the following:
+can also manually create the configuration file. A sample for AD FS is demonstrated below:
 ```
 {
   "region": "us-east-1",
-  "adfs_url": "https://sample.domain.com/adfs/ls/IdpInitiatedSignOn.aspx?loginToRp=urn:amazon:webservices"
+  "idp_url": "https://sample.domain.com/adfs/ls/IdpInitiatedSignOn.aspx?loginToRp=urn:amazon:webservices"
 }
 ```
 Users can override either of the configured values on the command line.

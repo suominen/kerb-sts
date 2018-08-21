@@ -26,7 +26,7 @@ class AWSRole:
     def __init__(self, aws_role):
         """
         Create a new Role object and parse the specified role into is parts.
-        :param aws_role: the text from the ADFS login page
+        :param aws_role: the text from the IdP login page
         """
         if AWSRole.is_valid(aws_role):
             self._parse(aws_role)

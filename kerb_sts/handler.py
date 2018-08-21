@@ -27,9 +27,9 @@ from kerb_sts.awsrole import AWSRole
 
 class KerberosHandler:
     """
-    The KerberosHandler sends a request to an ADFS server. The handler can either use Kerberos auth
+    The KerberosHandler sends a request to an IdP endpoint. The handler can either use Kerberos auth
     or can also be configured with a username and password and use NTLM auth. This handler takes
-    the SAML response from ADFS and parses out the available AWS IAM roles that the
+    the SAML response from the IdP and parses out the available AWS IAM roles that the
     user can assume. The handler then reaches out to AWS and generates temporary tokens for each of
     the roles that the user can assume.
     """
@@ -46,7 +46,7 @@ class KerberosHandler:
         """
         Entry point for generating a set of temporary tokens from AWS.
         :param region: The AWS region tokens are being requested for
-        :param url: The URL of the ADFS server to auth against
+        :param url: The URL of the IdP endpoint to auth against
         :param credentials_filename: Where should the tokens be written to
         :param config_filename: Where should the region/format be written to
         :param default_role: Which IAM role should be set as the default in the config file
@@ -57,28 +57,27 @@ class KerberosHandler:
         session = requests.Session()
         headers = {'User-Agent': 'Mozilla/5.0 (compatible, MSIE 11, Windows NT 6.3; Trident/7.0; rv:11.0) like Gecko'}
 
-        # Query ADFS for a SAML token
         response = session.get(
             url,
             verify=self.ssl_verification,
             headers=headers,
             auth=authenticator.get_auth_handler(session)
         )
-        logging.debug("received {} adfs response".format(response.status_code))
+        logging.debug("received {} IdP response".format(response.status_code))
 
         if response.status_code != requests.codes.ok:
             raise Exception(
-                "did not get a valid adfs reply. response was: {} {}".format(response.status_code, response.text)
+                "did not get a valid reply. response was: {} {}".format(response.status_code, response.text)
             )
 
-        # We got a successful response from ADFS. Parse the assertion and pass it to AWS
+        # We got a successful response from the IdP. Parse the assertion and pass it to AWS
         self._handle_sts_from_response(response, region, credentials_filename, config_filename, default_role, list_only)
 
     def _handle_sts_from_response(self, response, region, credentials_filename, config_filename, default_role, list_only):
         """
         Takes a successful SAML response, parses it for valid AWS IAM roles, and then reaches out to
         AWS and requests temporary tokens for each of the IAM roles.
-        :param response: The SAML response from a previous request to ADFS
+        :param response: The SAML response from a previous request to IdP endpoint
         :param region: The AWS region tokens are being requested for
         :param credentials_filename: Where should the region/format be written to
         :param config_filename: Where should the tokens be written to
