@@ -58,9 +58,8 @@ class KerberosAuthenticator(Authenticator):
             kinit.expect(pexpect.EOF)
             kinit.close()
             if kinit.exitstatus is not 0:
-                raise Exception('failed to generate a kerberos ticket for principal {}'.format(principal))
+                raise Exception('kinit failed for principal {}'.format(principal))
         except Exception as ex:
-            logging.error('failed to generate a kerberos ticket')
             raise ex
 
     @staticmethod
