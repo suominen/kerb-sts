@@ -52,8 +52,8 @@ class KerberosAuthenticator(Authenticator):
     @staticmethod
     def __generate_kerberos_ticket_for_user(username, password, domain):
         try:
-            principal = 'kinit {}@{}'.format(username, domain)
-            kinit = pexpect.spawn(principal)
+            principal = '{}@{}'.format(username, domain)
+            kinit = pexpect.spawn('kinit {}'.format(principal))
             kinit.sendline(password)
             kinit.expect(pexpect.EOF)
             kinit.close()
