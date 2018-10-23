@@ -48,7 +48,8 @@ setup(
         'requests>=2.12.3',
         'requests-kerberos>=0.11.0',
         'requests-ntlm>=0.3.0',
-        'six>=1.10.0'
+        'six>=1.10.0',
+        'pexpect>=4.0.0'
     ],
 
     entry_points={

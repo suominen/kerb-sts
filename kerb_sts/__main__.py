@@ -107,14 +107,25 @@ def _configure():
     idp_url = input(
         "IdP AWS sign in URL: "
     )
+
     kerb_hostname = input(
         "Kerberos hostname (default: IdP AWS sign in URL domain): "
     )
+
     region = input("AWS region (default: {}): ".format(DEFAULT_REGION))
     if region == '':
         region = DEFAULT_REGION
 
-    config = Config(idp_url=idp_url, region=region, kerb_hostname=kerb_hostname)
+    username_password_auth_type = input("Username/password auth type (default: ntlm): ")
+    if username_password_auth_type == '':
+        username_password_auth_type = 'ntlm'
+
+    config = Config(
+        idp_url=idp_url,
+        region=region,
+        kerb_hostname=kerb_hostname,
+        username_password_auth_type=username_password_auth_type
+    )
     config.save()
 
 
@@ -147,11 +158,19 @@ def _setup_authenticator(options, config):
     """
     if options.username and options.domain:
         if options.password:
-            authenticator = auth.NtlmAuthenticator(
-                username=options.username,
-                password=options.password,
-                domain=options.domain
-            )
+            if config.username_password_auth_type == 'kerberos':
+                authenticator = auth.KerberosAuthenticator(
+                    kerb_hostname=config.kerb_hostname,
+                    username=options.username,
+                    password=options.password,
+                    domain=options.domain
+                )
+            else:
+                authenticator = auth.NtlmAuthenticator(
+                    username=options.username,
+                    password=options.password,
+                    domain=options.domain
+                )
         elif options.keytab:
             authenticator = auth.KeytabAuthenticator(
                 username=options.username,

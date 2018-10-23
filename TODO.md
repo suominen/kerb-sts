@@ -10,10 +10,4 @@
 6. Replace 'saml-i' with saml-<random> to avoid order based assumptions
 7. Consider not replacing existing kerberos_sts if they are not near expiration
 8. Consider a purge flag to remove previously prompted values
-
-## Author Skill
-1. Learn about Python type system and any available benefits
-2. Learn about simplified config management
-3. Learn about string formatting techniques in Python
-4. Learn about python command line args handling
-5. Can python scripts be run natively on Windows
+9. Rename the project to be less specific to kerberos, and split up kerberos and NTLM authentication?
