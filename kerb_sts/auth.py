@@ -66,15 +66,16 @@ class KerberosAuthenticator(Authenticator):
     def __generate_kerberos_ticket():
         # Windows does not have support for `klist`. Assume
         # Windows users have a valid Kerberos ticket.
-        try:
-            subprocess.check_output(['klist', '-s'])
-        except subprocess.CalledProcessError:
-            logging.info('no kerberos ticket found. running kinit')
+        if os.name != 'nt':
             try:
-                subprocess.check_output(['kinit'])
-            except subprocess.CalledProcessError as err:
-                logging.error('failed to generate a kerberos ticket')
-                raise err
+                subprocess.check_output(['klist', '-s'])
+            except subprocess.CalledProcessError:
+                logging.info('no kerberos ticket found. running kinit')
+                try:
+                    subprocess.check_output(['kinit'])
+                except subprocess.CalledProcessError as err:
+                    logging.error('failed to generate a kerberos ticket')
+                    raise err
 
     def get_auth_handler(self, session):
         return HTTPKerberosAuth(mutual_authentication=OPTIONAL, hostname_override=self.kerb_hostname)
