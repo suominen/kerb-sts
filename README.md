@@ -17,7 +17,7 @@ idp_url | Yes | URL where the SAML authentication requests are sent
 adfs_url | No | **deprecated** URL where the SAML authentication requests are sent
 region | Yes | Region for AWS credentials
 kerb_domain | No | Domain name used for the Kerberos GSS exchange. This is set to the domain name of `idp_url` by default
-username_password_auth_type | No | Type of authentication to use when a username and password is submitted. Acceptable values: `ntlm`, `kerberos`
+preferred_auth_type | No | Type of authentication to use when a username and password is submitted. Acceptable values: `ntlm` (default), `kerberos`
 
 Users can generate this file with Kerb-STS:
 ```
@@ -104,7 +104,7 @@ kerb-sts -r iam-role-to-assume --daemon
 ```
 kerb-sts -u username -p 'password' -d DOMAIN
 ```
-Based on the value of `username_password_auth_type` in your config file, this call with authenticate using NTLM, or will create a kerberos ticket for the inputted user and authenticate.
+Based on the value of `preferred_auth_type` in your config file, this call with authenticate using NTLM, or will create a kerberos ticket for the inputted user and authenticate.
 
 #### Keytab
 This script allows users to generate Kerberos tokens with Kerberos keytabs. Keytabs

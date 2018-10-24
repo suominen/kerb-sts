@@ -20,9 +20,9 @@ import time
 
 from six.moves import input
 
-from kerb_sts import auth
 from kerb_sts.config import Config
 from kerb_sts.handler import KerberosHandler
+from kerb_sts.auth import KerberosAuthenticator, NtlmAuthenticator, KeytabAuthenticator
 
 DEFAULT_REGION = 'us-east-1'
 
@@ -104,27 +104,25 @@ def _configure():
     """
     Generates a configuration file for subsequent runs to consume.
     """
-    idp_url = input(
-        "IdP AWS sign in URL: "
-    )
+    idp_url = input('IdP AWS sign in URL: ')
+    kerb_hostname = input('Kerberos hostname (default: IdP AWS sign in URL domain): ')
 
-    kerb_hostname = input(
-        "Kerberos hostname (default: IdP AWS sign in URL domain): "
-    )
-
-    region = input("AWS region (default: {}): ".format(DEFAULT_REGION))
+    region = input('AWS region (default: {}): '.format(DEFAULT_REGION))
     if region == '':
         region = DEFAULT_REGION
 
-    username_password_auth_type = input("Username/password auth type (default: ntlm): ")
-    if username_password_auth_type == '':
-        username_password_auth_type = 'ntlm'
+    preferred_auth_type = input('Preferred auth type (default: ntlm): ')
+    valid_preferred_auth_types = [KerberosAuthenticator.AUTH_TYPE, NtlmAuthenticator.AUTH_TYPE]
+    if preferred_auth_type == '':
+        preferred_auth_type = 'ntlm'
+    elif preferred_auth_type not in valid_preferred_auth_types:
+        raise Exception('invalid preferred auth type; acceptable types: {}'.format(valid_preferred_auth_types))
 
     config = Config(
         idp_url=idp_url,
         region=region,
         kerb_hostname=kerb_hostname,
-        username_password_auth_type=username_password_auth_type
+        preferred_auth_type=preferred_auth_type
     )
     config.save()
 
@@ -140,11 +138,11 @@ def _setup_config(options):
 
     if options.idp_url:
         config.idp_url = options.idp_url
-    logging.debug("IdP url set to {}".format(config.idp_url))
+    logging.debug('IdP url set to {}'.format(config.idp_url))
 
     if options.region:
         config.region = options.region
-    logging.debug("region set to {}".format(config.region))
+    logging.debug('region set to {}'.format(config.region))
 
     return config
 
@@ -158,21 +156,23 @@ def _setup_authenticator(options, config):
     """
     if options.username and options.domain:
         if options.password:
-            if config.username_password_auth_type == 'kerberos':
-                authenticator = auth.KerberosAuthenticator(
+            if config.preferred_auth_type == KerberosAuthenticator.AUTH_TYPE:
+                authenticator = KerberosAuthenticator(
                     kerb_hostname=config.kerb_hostname,
                     username=options.username,
                     password=options.password,
                     domain=options.domain
                 )
-            else:
-                authenticator = auth.NtlmAuthenticator(
+            elif config.preferred_auth_type == NtlmAuthenticator.AUTH_TYPE or not config.preferred_auth_type:
+                authenticator = NtlmAuthenticator(
                     username=options.username,
                     password=options.password,
                     domain=options.domain
                 )
+            else:
+                raise Exception('invalid preferred auth type {}'.format(config.preferred_auth_type))
         elif options.keytab:
-            authenticator = auth.KeytabAuthenticator(
+            authenticator = KeytabAuthenticator(
                 username=options.username,
                 keytab=options.keytab,
                 domain=options.domain
@@ -182,7 +182,7 @@ def _setup_authenticator(options, config):
     elif options.username or options.domain:
         raise Exception("both username and domain are required for ntlm or keytab authentication")
     else:
-        authenticator = auth.KerberosAuthenticator(config.kerb_hostname)
+        authenticator = KerberosAuthenticator(config.kerb_hostname)
     return authenticator
 
 

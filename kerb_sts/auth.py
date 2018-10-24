@@ -40,17 +40,18 @@ class KerberosAuthenticator(Authenticator):
     The KerberosAuthenticator uses the local Kerberos install to
     authenticate a user who's machine is logged into to the Domain.
     """
+    AUTH_TYPE = 'kerberos'
 
     def __init__(self, kerb_hostname=None, username=None, password=None, domain=None):
         self.kerb_hostname = kerb_hostname if kerb_hostname else None
 
         if username:
-            self.__generate_kerberos_ticket_for_user(username, password, domain)
+            KerberosAuthenticator.__generate_kerberos_ticket(username, password, domain)
         else:
-            self.__generate_kerberos_ticket()
+            KerberosAuthenticator.__generate_kerberos_ticket_using_credentials_cache()
 
     @staticmethod
-    def __generate_kerberos_ticket_for_user(username, password, domain):
+    def __generate_kerberos_ticket(username, password, domain):
         try:
             principal = '{}@{}'.format(username, domain)
             kinit = pexpect.spawn('kinit {}'.format(principal))
@@ -63,7 +64,7 @@ class KerberosAuthenticator(Authenticator):
             raise ex
 
     @staticmethod
-    def __generate_kerberos_ticket():
+    def __generate_kerberos_ticket_using_credentials_cache():
         # Windows does not have support for `klist`. Assume
         # Windows users have a valid Kerberos ticket.
         if os.name != 'nt':
@@ -82,7 +83,7 @@ class KerberosAuthenticator(Authenticator):
 
     @staticmethod
     def get_auth_type():
-        return 'kerberos'
+        return KerberosAuthenticator.AUTH_TYPE
 
 
 class NtlmAuthenticator(Authenticator):
@@ -90,6 +91,7 @@ class NtlmAuthenticator(Authenticator):
     The NtlmAuthenticator authenticates users with basic credentials
     and a domain.
     """
+    AUTH_TYPE = 'ntlm'
 
     def __init__(self, username, password, domain):
         self.username = username
@@ -105,7 +107,7 @@ class NtlmAuthenticator(Authenticator):
 
     @staticmethod
     def get_auth_type():
-        return 'ntlm'
+        return NtlmAuthenticator.AUTH_TYPE
 
 
 class KeytabAuthenticator(Authenticator):
