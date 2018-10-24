@@ -36,11 +36,13 @@ class Config:
     ADFS_URL_KEY = 'adfs_url'
     KERB_HOSTNAME_KEY = 'kerb_hostname'
     REGION_KEY = 'region'
+    PREFERRED_AUTH_TYPE = 'preferred_auth_type'
 
-    def __init__(self, idp_url, kerb_hostname, region):
+    def __init__(self, idp_url, kerb_hostname, region, preferred_auth_type):
         self.idp_url = idp_url
         self.kerb_hostname = kerb_hostname
         self.region = region
+        self.preferred_auth_type = preferred_auth_type
 
     def save(self, filename=_get_default_config_filename()):
         """
@@ -53,7 +55,8 @@ class Config:
         dictionary = {
             Config.IDP_URL_KEY: self.idp_url,
             Config.KERB_HOSTNAME_KEY: self.kerb_hostname,
-            Config.REGION_KEY: self.region
+            Config.REGION_KEY: self.region,
+            Config.PREFERRED_AUTH_TYPE: self.preferred_auth_type
         }
         with open(filename, 'w') as f:
             json.dump(dictionary, f)
@@ -75,7 +78,7 @@ class Config:
         :param filename: the path to the config file
         :return: a Config object constructed from the filename's contents
         """
-        config = Config(idp_url='', kerb_hostname='', region='')
+        config = Config(idp_url='', kerb_hostname='', region='', preferred_auth_type='')
         try:
             with open(filename) as f:
                 config_json = json.loads(f.read())
@@ -90,6 +93,9 @@ class Config:
 
                     if Config.REGION_KEY in config_json:
                         config.region = str(config_json[Config.REGION_KEY])
+
+                    if Config.PREFERRED_AUTH_TYPE in config_json:
+                        config.preferred_auth_type = str(config_json[Config.PREFERRED_AUTH_TYPE])
         except IOError:
             logging.warning("could not read config file {}".format(filename))
         return config

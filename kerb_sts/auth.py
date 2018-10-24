@@ -14,6 +14,7 @@
 
 import logging
 import os
+import pexpect
 import subprocess
 
 from requests_kerberos import HTTPKerberosAuth, OPTIONAL
@@ -39,27 +40,50 @@ class KerberosAuthenticator(Authenticator):
     The KerberosAuthenticator uses the local Kerberos install to
     authenticate a user who's machine is logged into to the Domain.
     """
+    AUTH_TYPE = 'kerberos'
 
-    def __init__(self, kerb_hostname=None):
+    def __init__(self, kerb_hostname=None, username=None, password=None, domain=None):
         self.kerb_hostname = kerb_hostname if kerb_hostname else None
+
+        if username:
+            KerberosAuthenticator.__generate_kerberos_ticket(username, password, domain)
+        else:
+            KerberosAuthenticator.__generate_kerberos_ticket_using_credentials_cache()
+
+    @staticmethod
+    def __generate_kerberos_ticket(username, password, domain):
+        try:
+            principal = '{}@{}'.format(username, domain)
+            kinit = pexpect.spawn('kinit {}'.format(principal))
+            kinit.sendline(password)
+            kinit.expect(pexpect.EOF)
+            kinit.close()
+            if kinit.exitstatus is not 0:
+                raise Exception('kinit failed for principal {}'.format(principal))
+        except Exception as ex:
+            raise ex
+
+    @staticmethod
+    def __generate_kerberos_ticket_using_credentials_cache():
         # Windows does not have support for `klist`. Assume
         # Windows users have a valid Kerberos ticket.
         if os.name != 'nt':
             try:
                 subprocess.check_output(['klist', '-s'])
             except subprocess.CalledProcessError:
-                logging.info("no kerberos ticket found. running kinit")
+                logging.info('no kerberos ticket found. running kinit')
                 try:
                     subprocess.check_output(['kinit'])
-                except subprocess.CalledProcessError:
-                    raise Exception("failed to generate a kerberos ticket")
+                except subprocess.CalledProcessError as err:
+                    logging.error('failed to generate a kerberos ticket')
+                    raise err
 
     def get_auth_handler(self, session):
         return HTTPKerberosAuth(mutual_authentication=OPTIONAL, hostname_override=self.kerb_hostname)
 
     @staticmethod
     def get_auth_type():
-        return 'kerberos'
+        return KerberosAuthenticator.AUTH_TYPE
 
 
 class NtlmAuthenticator(Authenticator):
@@ -67,6 +91,7 @@ class NtlmAuthenticator(Authenticator):
     The NtlmAuthenticator authenticates users with basic credentials
     and a domain.
     """
+    AUTH_TYPE = 'ntlm'
 
     def __init__(self, username, password, domain):
         self.username = username
@@ -82,7 +107,7 @@ class NtlmAuthenticator(Authenticator):
 
     @staticmethod
     def get_auth_type():
-        return 'ntlm'
+        return NtlmAuthenticator.AUTH_TYPE
 
 
 class KeytabAuthenticator(Authenticator):
