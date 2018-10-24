@@ -114,7 +114,7 @@ def _configure():
     preferred_auth_type = input('Preferred auth type (default: ntlm): ')
     valid_preferred_auth_types = [KerberosAuthenticator.AUTH_TYPE, NtlmAuthenticator.AUTH_TYPE]
     if preferred_auth_type == '':
-        preferred_auth_type = 'ntlm'
+        preferred_auth_type = NtlmAuthenticator.AUTH_TYPE
     elif preferred_auth_type not in valid_preferred_auth_types:
         raise Exception('invalid preferred auth type; acceptable types: {}'.format(valid_preferred_auth_types))
 
