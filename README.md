@@ -64,7 +64,7 @@ to follow these instructions which leverage virtual environments.*
 ### Windows
 0. Install [Python] (https://www.python.org/downloads/)
 1. Ensure python and python/scripts are on the PATH
-2. Install pywin32 from [SourceForge] (https://sourceforge.net/projects/pywin32/files/pywin32/Build%20220/). Follow the instructions to ensure you get the correct version.
+2. Install pywin32 from [mhammond/pywin32](https://github.com/mhammond/pywin32/releases). Follow the instructions to ensure you get the correct version.
 3. pip install kerb-sts
 
 ### Ubuntu
