@@ -62,7 +62,7 @@ to follow these instructions which leverage virtual environments.*
 2. You can then just run sudo pip install kerb-sts
 
 ### Windows
-0. Install [Python] (https://www.python.org/downloads/)
+0. Install [Python](https://www.python.org/downloads/)
 1. Ensure python and python/scripts are on the PATH
 2. Install pywin32 from [mhammond/pywin32](https://github.com/mhammond/pywin32/releases). Follow the instructions to ensure you get the correct version.
 3. pip install kerb-sts
