@@ -19,6 +19,7 @@ import logging
 import os
 import requests
 import xml.etree.ElementTree as ET
+import re
 
 from bs4 import BeautifulSoup
 
@@ -69,6 +70,36 @@ class KerberosHandler:
             raise Exception(
                 "did not get a valid reply. response was: {} {}".format(response.status_code, response.text)
             )
+
+        soup = BeautifulSoup(response.text, 'html.parser')
+        token = None
+        for formtag in soup.find_all('form'):
+            post_url = formtag.get('action');
+            if re.search("\.onelogin\.com/", post_url):
+                for inputtag in soup.find_all('input'):
+                    if inputtag.get('name') == 'token':
+                        token = inputtag.get('value')
+                        break
+
+                if not token:
+                    raise Exception("did not get a token in response. response was:\n%s" % response.text)
+
+                response = session.post(
+                    post_url,
+                    verify=self.ssl_verification,
+                    headers=headers,
+                    auth=None,
+                    data={'token': token}
+                )
+
+                logging.debug("received {} IdP response with token".format(response.status_code))
+
+                if response.status_code != requests.codes.ok:
+                    raise Exception(
+                        "did not get a valid reply with token. response was: {} {}".format(response.status_code, response.text)
+                    )
+
+                break
 
         # We got a successful response from the IdP. Parse the assertion and pass it to AWS
         self._handle_sts_from_response(response, region, credentials_filename, config_filename, default_role, list_only)
