@@ -65,8 +65,8 @@ def _get_options():
                         dest='configure', action='store_true', default=False)
     parser.add_argument('--daemon', help="Run as a daemon. This will auto-renew credentials every half hour",
                         dest='daemon', action='store_true', default=False)
-    parser.add_argument('-r', '--default_role', help="Name of the Role to use as the default",
-                        dest='default_role', default=None)
+    parser.add_argument('-r', '--default_profile', help="Name of the Profile to use as the default",
+                        dest='default_profile', default=None)
     parser.add_argument('-d', '--domain', help="AD Domain if using a Kerberos keytab or NTLM auth. Requires a username and password/keytab",
                         dest='domain', default=None)
     parser.add_argument('--keytab', help="The Kerberos keytab file. Requires a username and domain",
@@ -204,13 +204,13 @@ def _generate_tokens(options, config, authenticator):
     logging.info("region: {}".format(config.region))
     logging.info("url: {}".format(config.idp_url))
     logging.info("credentials file: {}".format(options.credentials_file))
-    if options.default_role:
-        logging.info("default role: {}".format(options.default_role))
+    if options.default_profile:
+        logging.info("default profile: {}".format(options.default_profile))
     logging.info("auth type: {}".format(authenticator.get_auth_type()))
 
     h = KerberosHandler()
     h.handle_sts_by_kerberos(config.region, config.idp_url, options.credentials_file, options.config_file,
-                             options.default_role, options.list, authenticator)
+                             options.default_profile, options.list, authenticator)
     logging.info("--------------------------------")
 
 
