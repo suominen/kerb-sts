@@ -42,14 +42,14 @@ class KerberosHandler:
         self.ssl_verification = True
 
     def handle_sts_by_kerberos(self, region, url, credentials_filename, config_filename,
-                               default_role, list_only, authenticator):
+                               default_profile, list_only, authenticator):
         """
         Entry point for generating a set of temporary tokens from AWS.
         :param region: The AWS region tokens are being requested for
         :param url: The URL of the IdP endpoint to auth against
         :param credentials_filename: Where should the tokens be written to
         :param config_filename: Where should the region/format be written to
-        :param default_role: Which IAM role should be set as the default in the config file
+        :param default_profile: Which profile should be set as the default in the config file
         :param list_only: If set, the IAM roles available will just be printed instead of assumed
         :param authenticator: the Authenticator
         """
@@ -71,9 +71,9 @@ class KerberosHandler:
             )
 
         # We got a successful response from the IdP. Parse the assertion and pass it to AWS
-        self._handle_sts_from_response(response, region, credentials_filename, config_filename, default_role, list_only)
+        self._handle_sts_from_response(response, region, credentials_filename, config_filename, default_profile, list_only)
 
-    def _handle_sts_from_response(self, response, region, credentials_filename, config_filename, default_role, list_only):
+    def _handle_sts_from_response(self, response, region, credentials_filename, config_filename, default_profile, list_only):
         """
         Takes a successful SAML response, parses it for valid AWS IAM roles, and then reaches out to
         AWS and requests temporary tokens for each of the IAM roles.
@@ -81,7 +81,7 @@ class KerberosHandler:
         :param region: The AWS region tokens are being requested for
         :param credentials_filename: Where should the region/format be written to
         :param config_filename: Where should the tokens be written to
-        :param default_role: Which IAM role should be as as the default in the config file
+        :param default_profile: Which profile should be as as the default in the config file
         :param list_only: If set, the IAM roles available will just be printed instead of assumed
         """
 
@@ -93,6 +93,7 @@ class KerberosHandler:
         for inputtag in soup.find_all('input'):
             if inputtag.get('name') == 'SAMLResponse':
                 assertion = inputtag.get('value')
+                break
 
         if not assertion:
             raise Exception("did not get a valid SAML response. response was:\n%s" % response.text)
@@ -121,39 +122,39 @@ class KerberosHandler:
 
         # If the user supplied to a default role make sure
         # that role is available to them.
-        if default_role is not None:
-            found_default_role = False
+        if default_profile is not None:
+            found_default_profile = False
             for aws_role in aws_roles:
-                name = AWSRole(aws_role).name
-                if name == default_role:
-                    found_default_role = True
+                profile = AWSRole(aws_role).profile
+                if profile == default_profile:
+                    found_default_profile = True
                     break
-            if not found_default_role:
-                raise Exception("provided default role not found in list of available roles")
+            if not found_default_profile:
+                raise Exception("provided default profile not found in list of available roles")
 
         # Go through each of the available roles and
         # attempt to get temporary tokens for each
         for aws_role in aws_roles:
-            profile = AWSRole(aws_role).name
+            profile = AWSRole(aws_role).profile
 
             if list_only:
-                logging.info("role: {}".format(profile))
+                logging.info("profile: {}".format(profile))
             else:
                 token = self._bind_assertion_to_role(assertion, aws_role, profile,
-                                                     region, credentials_filename, config_filename, default_role)
+                                                     region, credentials_filename, config_filename, default_profile)
 
                 if not token:
                     raise Exception("did not receive a valid token from aws.")
 
                 expires_utc = token.credentials.expiration
 
-                if default_role == profile:
-                    logging.info("default role: {} until {}".format(profile, expires_utc))
+                if default_profile == profile:
+                    logging.info("default profile: {} until {}".format(profile, expires_utc))
                 else:
-                    logging.info("role: {} until {}".format(profile, expires_utc))
+                    logging.info("profile: {} until {}".format(profile, expires_utc))
 
     def _bind_assertion_to_role(self, assertion, role, profile, region,
-                                credentials_filename, config_filename, default_role):
+                                credentials_filename, config_filename, default_profile):
         """
         Attempts to assume an IAM role using a given SAML assertion.
         :param assertion: A SAML assertion authenticating the user
@@ -162,7 +163,7 @@ class KerberosHandler:
         :param region: The region the role is being assumed in
         :param credentials_filename: Output file for the regions/formats for each profile
         :param config_filename: Output file for the generated tokens
-        :param default_role: Which role should be set as default in the config
+        :param default_profile: Which profile should be set as default in the config
         :return token: A valid token with temporary IAM credentials
         """
 
@@ -184,10 +185,10 @@ class KerberosHandler:
         config = configparser.RawConfigParser(default_section=default_section)
         config.read(config_filename)
 
-        # If the default_role was passed in on the command line we will overwrite
+        # If the default_profile was passed in on the command line we will overwrite
         # the [default] section of the credentials file
         sections = []
-        if default_role == profile:
+        if default_profile == profile:
             sections.append(default_section)
 
         # Make sure the section exists

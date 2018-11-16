@@ -21,23 +21,22 @@ class AWSRole:
 
     ARN_PART_INDEX = 0
     PROVIDER_PART_INDEX = 1
-    ROLE_PART_INDEX = 1
+    ACCOUNT_PART_INDEX = 4
+    ROLE_PART_INDEX = 5
+    ROLE_NAME_PART_INDEX = -1
 
     def __init__(self, aws_role):
         """
         Create a new Role object and parse the specified role into is parts.
         :param aws_role: the text from the IdP login page
         """
-        if AWSRole.is_valid(aws_role):
-            self._parse(aws_role)
-        else:
+        if not self._parse(aws_role):
             msg = "The 'aws_role' is not valid: {0}".format(aws_role)
             raise ValueError(msg)
 
-    @staticmethod
-    def is_valid(aws_role):
+    def _parse(self, aws_role):
         """
-        Determine if the role string will be valid when parsed.
+        Parse the role string and return True if parsing succeeded.
         :param aws_role: the Role ARN from AWS
         :return: **True** if the role string can be parsed, otherwise **False**
         """
@@ -58,23 +57,27 @@ class AWSRole:
         if len(provider) <= 0:
             return False
 
-        # all ARNs are in the form of 'arn:aws:iam::account-id:role/role-name'
-        slash_index = arn.find('/')
-        if slash_index == -1:
+        # ARNs are of the form 'arn:aws:iam::account-id:role/path/role-name'
+        # if path == '/' then a single slash ('/') appears between the "role"
+        # keyword and the name of the role
+
+        arn_parts = arn.split(':')
+
+        if len(arn_parts) != 6:
             return False
 
-        return True
+        account = arn_parts[AWSRole.ACCOUNT_PART_INDEX]
+        role_parts = arn_parts[AWSRole.ROLE_PART_INDEX].split('/')
 
-    # Parse the role string.
-    def _parse(self, aws_role):
-        parts = aws_role.split(',')
+        if len(role_parts) < 2:
+            return False
 
-        arn = parts[AWSRole.ARN_PART_INDEX]
-        provider = parts[AWSRole.PROVIDER_PART_INDEX]
-
-        role_parts = arn.split('/')
-        name = role_parts[AWSRole.ROLE_PART_INDEX]
+        name = role_parts[AWSRole.ROLE_NAME_PART_INDEX]
 
         self.arn = arn
-        self.name = name
         self.provider = provider
+        self.account = account
+        self.name = name
+        self.profile = "{}.{}".format(account, name)
+
+        return True
