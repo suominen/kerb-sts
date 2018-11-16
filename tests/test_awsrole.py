@@ -17,38 +17,28 @@ from kerb_sts.awsrole import AWSRole
 
 
 class TestAWSRoleCreation(unittest.TestCase):
-    def test_with_role_as_none(self):
-        is_valid = AWSRole.is_valid(None)
-        self.assertFalse(is_valid)
+    def test_with_none(self):
+        self.assertRaises(ValueError, AWSRole, None)
 
     def test_with_empty_string(self):
-        is_valid = AWSRole.is_valid('')
-        self.assertFalse(is_valid)
+        self.assertRaises(ValueError, AWSRole, '')
 
-    def test_with_malformed_role_string(self):
-        is_valid = AWSRole.is_valid('arn_noseparator_provider')
-        self.assertFalse(is_valid)
+    def test_with_malformed_string(self):
+        self.assertRaises(ValueError, AWSRole, 'arn_noseparator_provider')
 
     def test_with_missing_arn_string(self):
-        is_valid = AWSRole.is_valid(',provider')
-        self.assertFalse(is_valid)
+        self.assertRaises(ValueError, AWSRole, ',provider')
 
     def test_with_missing_provider_string(self):
-        is_valid = AWSRole.is_valid('arn/role,')
-        self.assertFalse(is_valid)
+        self.assertRaises(ValueError, AWSRole, 'arn:aws:iam::123456789012:role/path/role-name,')
 
-    def test_with_valid_strings(self):
-        is_valid = AWSRole.is_valid('arn/role,provider')
-        self.assertTrue(is_valid)
-
-    def test_parsed_role(self):
-        role = AWSRole('arn/role,provider')
-        self.assertEqual(role.arn, 'arn/role')
+    def test_with_well_formed_string(self):
+        role = AWSRole('arn:aws:iam::123456789012:role/path/role-name,provider')
+        self.assertEqual(role.account, '123456789012')
+        self.assertEqual(role.arn, 'arn:aws:iam::123456789012:role/path/role-name')
+        self.assertEqual(role.name, 'role-name')
+        self.assertEqual(role.profile, '123456789012.role-name')
         self.assertEqual(role.provider, 'provider')
-
-    def test_with_valid_strings(self):
-        role = AWSRole('arn/role,provider')
-        self.assertEqual(role.name, 'role')
 
 
 if __name__ == '__main__':
