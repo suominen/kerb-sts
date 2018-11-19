@@ -59,7 +59,7 @@ def _get_options():
     parser.add_argument('--kerb_hostname', help="Kerberos hostname (defaults to IdP domain)", dest='kerb_hostname')
     parser.add_argument('-c', '--credentials_file', help="AWSCLI credentials file (defaults ~/.aws/credentials)",
                         dest='credentials_file', default=_get_default_credentials_filename())
-    parser.add_argument('-config_file', help="AWSCLI config file (defaults ~/.aws/config)",
+    parser.add_argument('--config_file', help="AWSCLI config file (defaults ~/.aws/config)",
                         dest='config_file', default=_get_default_config_filename())
     parser.add_argument('--configure', help="Sets up Kerb-STS by generating a config file at ~/.kerb-sts/config",
                         dest='configure', action='store_true', default=False)
@@ -79,6 +79,8 @@ def _get_options():
                         dest='refresh', default=30)
     parser.add_argument('--region', help="AWS Region for STS (defaults to {})".format(DEFAULT_REGION),
                         dest='region', default=DEFAULT_REGION)
+    parser.add_argument('-s', '--single_auth', help="Output a single profile in the external authentication process format.",
+                        dest='single_auth', default=None)
     parser.add_argument('-u', '--username', help="AD Username if generating a temporary Kerberos token. Requires a domain and password/keytab",
                         dest='username', default=None)
     parser.add_argument('-v', '--verbose', help="Turns on debug logging",
@@ -206,11 +208,13 @@ def _generate_tokens(options, config, authenticator):
     logging.info("credentials file: {}".format(options.credentials_file))
     if options.default_profile:
         logging.info("default profile: {}".format(options.default_profile))
+    if options.single_auth:
+        logging.info("single auth profile: {}".format(options.single_auth))
     logging.info("auth type: {}".format(authenticator.get_auth_type()))
 
     h = KerberosHandler()
     h.handle_sts_by_kerberos(config.region, config.idp_url, options.credentials_file, options.config_file,
-                             options.default_profile, options.list, authenticator)
+                             options.default_profile, options.list, options.single_auth, authenticator)
     logging.info("--------------------------------")
 
 

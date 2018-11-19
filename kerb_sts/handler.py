@@ -20,6 +20,7 @@ import os
 import requests
 import xml.etree.ElementTree as ET
 import re
+import json
 
 from bs4 import BeautifulSoup
 
@@ -43,7 +44,7 @@ class KerberosHandler:
         self.ssl_verification = True
 
     def handle_sts_by_kerberos(self, region, url, credentials_filename, config_filename,
-                               default_profile, list_only, authenticator):
+                               default_profile, list_only, single_auth, authenticator):
         """
         Entry point for generating a set of temporary tokens from AWS.
         :param region: The AWS region tokens are being requested for
@@ -52,6 +53,7 @@ class KerberosHandler:
         :param config_filename: Where should the region/format be written to
         :param default_profile: Which profile should be set as the default in the config file
         :param list_only: If set, the IAM roles available will just be printed instead of assumed
+        :param single_auth: Which profile should be output using the external authenticator format
         :param authenticator: the Authenticator
         """
 
@@ -102,9 +104,9 @@ class KerberosHandler:
                 break
 
         # We got a successful response from the IdP. Parse the assertion and pass it to AWS
-        self._handle_sts_from_response(response, region, credentials_filename, config_filename, default_profile, list_only)
+        self._handle_sts_from_response(response, region, credentials_filename, config_filename, default_profile, list_only, single_auth)
 
-    def _handle_sts_from_response(self, response, region, credentials_filename, config_filename, default_profile, list_only):
+    def _handle_sts_from_response(self, response, region, credentials_filename, config_filename, default_profile, list_only, single_auth):
         """
         Takes a successful SAML response, parses it for valid AWS IAM roles, and then reaches out to
         AWS and requests temporary tokens for each of the IAM roles.
@@ -114,6 +116,7 @@ class KerberosHandler:
         :param config_filename: Where should the tokens be written to
         :param default_profile: Which profile should be as as the default in the config file
         :param list_only: If set, the IAM roles available will just be printed instead of assumed
+        :param single_auth: Which profile should be output using the external authenticator format
         """
 
         soup = BeautifulSoup(response.text, 'html.parser')
@@ -153,15 +156,16 @@ class KerberosHandler:
 
         # If the user supplied to a default role make sure
         # that role is available to them.
-        if default_profile is not None:
-            found_default_profile = False
-            for aws_role in aws_roles:
-                profile = AWSRole(aws_role).profile
-                if profile == default_profile:
-                    found_default_profile = True
-                    break
-            if not found_default_profile:
-                raise Exception("provided default profile not found in list of available roles")
+        for lookup_profile in [single_auth, default_profile]:
+            if lookup_profile is not None:
+                found_profile = False
+                for aws_role in aws_roles:
+                    profile = AWSRole(aws_role).profile
+                    if profile == lookup_profile:
+                        found_profile = True
+                        break
+                if not found_profile:
+                    raise Exception("requested profile not available")
 
         # Go through each of the available roles and
         # attempt to get temporary tokens for each
@@ -171,8 +175,12 @@ class KerberosHandler:
             if list_only:
                 logging.info("profile: {}".format(profile))
             else:
+                if single_auth is not None:
+                    if profile != single_auth:
+                        continue
+
                 token = self._bind_assertion_to_role(assertion, aws_role, profile,
-                                                     region, credentials_filename, config_filename, default_profile)
+                                                     region, credentials_filename, config_filename, default_profile, single_auth)
 
                 if not token:
                     raise Exception("did not receive a valid token from aws.")
@@ -185,7 +193,7 @@ class KerberosHandler:
                     logging.info("profile: {} until {}".format(profile, expires_utc))
 
     def _bind_assertion_to_role(self, assertion, role, profile, region,
-                                credentials_filename, config_filename, default_profile):
+                                credentials_filename, config_filename, default_profile, single_auth):
         """
         Attempts to assume an IAM role using a given SAML assertion.
         :param assertion: A SAML assertion authenticating the user
@@ -195,6 +203,7 @@ class KerberosHandler:
         :param credentials_filename: Output file for the regions/formats for each profile
         :param config_filename: Output file for the generated tokens
         :param default_profile: Which profile should be set as default in the config
+        :param single_auth: Which profile should be output using the external authenticator format
         :return token: A valid token with temporary IAM credentials
         """
 
@@ -205,6 +214,16 @@ class KerberosHandler:
         token = conn.assume_role_with_saml(role_arn, principal_arn, assertion)
         if not token:
             raise Exception("failed to receive a valid token when assuming a role.")
+
+        if single_auth is not None:
+            print(json.dumps({
+                'Version': 1,
+                "AccessKeyId": token.credentials.access_key,
+                "SecretAccessKey": token.credentials.secret_key,
+                "SessionToken": token.credentials.session_token,
+                "Expiration": token.credentials.expiration
+            }))
+            return token
 
         # Write the AWS STS token into the AWS credential file
         # Read in the existing config file
